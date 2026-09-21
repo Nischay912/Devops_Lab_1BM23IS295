@@ -10,5 +10,6 @@ Lab exercises for DevOps subject, 7th semester.
 | [Exercise-2](./Exercise-2/) | Flask App on Kubernetes |
 | [Exercise-3](./Exercise-3/) | Scaling Flask App using ReplicaSets |
 | [Exercise-4](./Exercise-4/) | Docker Networking with Multiple Containers |
+| [Exercise-5](./Exercise-5/) | Docker Security with AppArmor and Python |
 
 More exercises will be added each week.

@@ -12,8 +12,8 @@
     /app/** rwk,
 
     # Deny execution of any binaries in /bin or /usr/bin
-    deny /bin/** rmix,
-    deny /usr/bin/** rmix,
+    deny /bin/** rx,
+    deny /usr/bin/** rx,
 
     # Capability restrictions
     capability net_bind_service,

@@ -40,14 +40,23 @@ pipeline {
         }
         stage('Run Prometheus & Grafana') {
             steps {
-                sh 'docker rm -f prometheus grafana || true'
-                sh '''
-                docker run -d --name prometheus -p 9090:9090 \
-                  -v $WORKSPACE/Exercise-6/prometheus.yml:/etc/prometheus/prometheus.yml \
-                  -v $WORKSPACE/Exercise-6/alert_rules.yml:/etc/prometheus/alert_rules.yml \
-                  prom/prometheus
-                docker run -d --name grafana -p 3000:3000 grafana/grafana
-                '''
+                dir('Exercise-6') {
+                    sh 'docker rm -f prometheus grafana || true'
+                    sh '''
+                    # Start prometheus without buggy volume mounts
+                    docker run -d --name prometheus -p 9090:9090 prom/prometheus
+                    
+                    # Copy the config files directly into the running container
+                    docker cp prometheus.yml prometheus:/etc/prometheus/prometheus.yml
+                    docker cp alert_rules.yml prometheus:/etc/prometheus/alert_rules.yml
+                    
+                    # Restart it so it reads the new configs
+                    docker restart prometheus
+                    
+                    # Start Grafana
+                    docker run -d --name grafana -p 3000:3000 grafana/grafana
+                    '''
+                }
             }
         }
     }

@@ -13,5 +13,6 @@ Lab exercises for DevOps subject, 7th semester.
 | [Exercise-5](./Exercise-5/) | Docker Security with AppArmor and Python |
 | [Exercise-6](./Exercise-6/) | Real-Time Monitoring & Alerting (Prometheus/Grafana/Jenkins) |
 | [Exercise-7](./Exercise-7/) | Introduction to CI and Jenkins Installation |
+| [Exercise-8](./Exercise-8/) | Creating a "Hello World" Jenkins Freestyle Job |
 
 More exercises will be added each week.

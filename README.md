@@ -14,5 +14,6 @@ Lab exercises for DevOps subject, 7th semester.
 | [Exercise-6](./Exercise-6/) | Real-Time Monitoring & Alerting (Prometheus/Grafana/Jenkins) |
 | [Exercise-7](./Exercise-7/) | Introduction to CI and Jenkins Installation |
 | [Exercise-8](./Exercise-8/) | Creating a "Hello World" Jenkins Freestyle Job |
+| [Exercise-9](./Exercise-9/) | Jenkins Multi-Stage Pipeline (Deploying a Python App) |
 
 More exercises will be added each week.

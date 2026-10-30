@@ -1,21 +1,24 @@
 #include <tunables/global>
 
-/usr/bin/python3 {
-    # Deny access to sensitive system files
-    deny /etc/** r,
-    deny /var/** rw,
+profile my-apparmor-profile flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
 
-    # Allow Flask app to bind to port 5000
-    network inet stream,
+  /usr/** r,
+  /usr/local/** rix,
+  /lib/** r,
+  /lib64/** r,
+  /app/** rwk,
+  /dev/** rw,
+  /proc/** r,
 
-    # Permissions to the application directory
-    /app/** rwk,
+  network inet stream,
+  capability net_bind_service,
+  deny capability sys_admin,
 
-    # Deny execution of any binaries in /bin or /usr/bin
-    deny /bin/** rx,
-    deny /usr/bin/** rx,
-
-    # Capability restrictions
-    capability net_bind_service,
-    deny capability sys_admin,
+  deny /etc/passwd r,
+  deny /etc/shadow r,
+  deny /bin/bash x,
+  deny /usr/bin/bash x,
+  deny /bin/sh x,
+  deny /usr/bin/sh x,
 }

@@ -1,5 +1,6 @@
 GUIDE.txt
 NOTES.txt
+EXAM_DAY_STEPS.md
 
 .DS_Store
 Thumbs.db
@@ -7,3 +8,6 @@ desktop.ini
 
 .vscode/
 .idea/
+
+DevOps_Exam_Flowcharts.pdf
+DevOps_Exam_Prep.pdf

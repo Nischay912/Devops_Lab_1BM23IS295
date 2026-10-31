@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response
 import pymysql
 import redis
 import json
@@ -104,7 +104,7 @@ def get_stats():
 
 @app.route('/metrics')
 def metrics():
-    return """# HELP retail_http_requests_total Total HTTP requests
+    data = """# HELP retail_http_requests_total Total HTTP requests
 # TYPE retail_http_requests_total counter
 retail_http_requests_total{endpoint="/stats"} 54
 # HELP retail_active_connections Current active connections
@@ -114,6 +114,7 @@ retail_active_connections 4
 # TYPE retail_cache_hits_total counter
 retail_cache_hits_total 38
 """
+    return Response(data, mimetype='text/plain')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

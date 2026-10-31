@@ -3,5 +3,6 @@ global:
 
 scrape_configs:
   - job_name: 'retail-flask-service'
+    scrape_interval: 5s
     static_configs:
       - targets: ['retail-app:5000']

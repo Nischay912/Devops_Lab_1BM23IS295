@@ -114,7 +114,7 @@ retail_active_connections 4
 # TYPE retail_cache_hits_total counter
 retail_cache_hits_total 38
 """
-    return Response(data, mimetype='text/plain')
+    return Response(data, mimetype='text/plain; version=0.0.4; charset=utf-8')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

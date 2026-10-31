@@ -6,7 +6,7 @@ echo "🚀 Setting up Question 6: Retail Analytics Multi-Container Stack"
 echo "=========================================================="
 
 echo "[1/6] Cleaning up old containers and network..."
-docker rm -f mysql-db redis-cache retail-app prometheus grafana 2>/dev/null || true
+docker rm -f mysql-db redis-cache retail-app prometheus grafana cadvisor 2>/dev/null || true
 docker network rm retail-net 2>/dev/null || true
 
 echo "[2/6] Loading AppArmor Profile into Linux Kernel..."
@@ -46,6 +46,13 @@ docker run -d --name prometheus -p 9090:9090 --network retail-net \
 # 5. Grafana (Port 3000)
 docker run -d --name grafana -p 3000:3000 --network retail-net \
   grafana/grafana
+
+# 6. cAdvisor (Port 8080 - Container Metrics Collector)
+docker run -d --name cadvisor --network retail-net --privileged \
+  -p 8080:8080 \
+  -v /:/rootfs:ro -v /var/run:/var/run:ro -v /sys:/sys:ro \
+  -v /var/lib/docker/:/var/lib/docker:ro \
+  gcr.io/cadvisor/cadvisor:v0.49.1
 
 echo "=========================================================="
 echo "⏳ Waiting 15 seconds for MySQL & Flask initialization..."

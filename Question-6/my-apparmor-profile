@@ -11,7 +11,7 @@ profile my-apparmor-profile flags=(attach_disconnected,mediate_deleted) {
   /dev/** rw,
   /proc/** r,
 
-  network inet stream,
+  network,
   capability net_bind_service,
   deny capability sys_admin,
 

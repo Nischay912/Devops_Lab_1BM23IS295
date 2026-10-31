@@ -1,0 +1,25 @@
+#include <tunables/global>
+
+profile my-apparmor-profile flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  /usr/** r,
+  /usr/local/** rix,
+  /lib/** r,
+  /lib64/** r,
+  /app/** rwk,
+  /dev/** rw,
+  /proc/** r,
+
+  network inet stream,
+  capability net_bind_service,
+  deny capability sys_admin,
+
+  # RESTRICTIONS (To demonstrate Exercise 5 task):
+  deny /etc/passwd r,
+  deny /etc/shadow r,
+  deny /bin/bash x,
+  deny /usr/bin/bash x,
+  deny /bin/sh x,
+  deny /usr/bin/sh x,
+}

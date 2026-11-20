@@ -1,10 +1,3 @@
-# ❌ DELIBERATE FAILURE VERSION — test_app_fail.py
-# Use this file to demonstrate that Jenkins catches and reports test failures
-# Step 1: Rename test_app.py -> test_app_good.py
-# Step 2: Rename this file -> test_app.py
-# Step 3: Change Jenkinsfile Test stage to: pytest test_app.py -v
-# Step 4: Push and rerun pipeline — it will FAIL at Test stage and NOT deploy!
-
 import pytest
 from app import app
 
@@ -17,14 +10,18 @@ def client():
 
 
 def test_home_status_code(client):
-    """This test ALWAYS FAILS on purpose to demonstrate pipeline failure catching."""
+    """Test that the home route returns HTTP 200."""
     response = client.get("/")
-    # DELIBERATELY WRONG: expecting 404 instead of 200
-    assert response.status_code == 404, "DELIBERATE FAILURE: This test is intentionally wrong!"
+    assert response.status_code == 200
 
 
 def test_home_response_body(client):
-    """This test also FAILS on purpose."""
+    """Test that the home route returns the correct response body."""
     response = client.get("/")
-    # DELIBERATELY WRONG expected string
-    assert response.data.decode("utf-8") == "WRONG EXPECTED RESPONSE — this will fail!"
+    assert response.data.decode("utf-8") == "Hello from Flask CI/CD Pipeline!"
+
+
+def test_health_route(client):
+    """Test that the health route returns UP status."""
+    response = client.get("/health")
+    assert response.status_code == 200

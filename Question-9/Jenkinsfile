@@ -15,8 +15,8 @@ pipeline {
             steps {
                 echo '========== STAGE 1: Build — Installing Dependencies =========='
                 sh '''
-                    python3 -m pip install --upgrade pip --quiet
-                    pip3 install -r requirements.txt --quiet
+                    python3 -m pip install --upgrade pip --quiet --break-system-packages
+                    pip3 install -r requirements.txt --quiet --break-system-packages
                     echo "Dependencies installed successfully."
                     pip3 show flask | grep Version
                     pip3 show pytest | grep Version

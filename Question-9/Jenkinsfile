@@ -1,0 +1,147 @@
+pipeline {
+    agent any
+
+    environment {
+        DEPLOY_DIR = "${WORKSPACE}/deployed-app"
+        APP_PORT   = "5050"
+        APP_PID    = "${WORKSPACE}/deployed-app/app.pid"
+        APP_LOG    = "${WORKSPACE}/deployed-app/app.log"
+    }
+
+    stages {
+
+        // ── STAGE 1: Build ────────────────────────────────────────────────────
+        stage('Build') {
+            steps {
+                echo '========== STAGE 1: Build — Installing Dependencies =========='
+                sh '''
+                    python3 -m pip install --upgrade pip --quiet
+                    pip3 install -r requirements.txt --quiet
+                    echo "Dependencies installed successfully."
+                    pip3 show flask | grep Version
+                    pip3 show pytest | grep Version
+                '''
+            }
+        }
+
+        // ── STAGE 2: Test ─────────────────────────────────────────────────────
+        stage('Test') {
+            steps {
+                echo '========== STAGE 2: Test — Running Unit Tests =========='
+                sh '''
+                    cd ${WORKSPACE}
+                    python3 -m pytest test_app.py -v --tb=short
+                '''
+            }
+        }
+
+        // ── STAGE 3: Deploy ───────────────────────────────────────────────────
+        stage('Deploy') {
+            steps {
+                echo '========== STAGE 3: Deploy — Copying App to Deployment Directory =========='
+                sh '''
+                    mkdir -p ${DEPLOY_DIR}
+                    cp ${WORKSPACE}/app.py         ${DEPLOY_DIR}/
+                    cp ${WORKSPACE}/requirements.txt ${DEPLOY_DIR}/
+                    echo "Deployment directory contents:"
+                    ls -la ${DEPLOY_DIR}/
+                    echo "Application deployed to ${DEPLOY_DIR}"
+                '''
+            }
+        }
+
+        // ── STAGE 4: Run Application ──────────────────────────────────────────
+        stage('Run Application') {
+            steps {
+                echo '========== STAGE 4: Run Application — Starting Flask Server =========='
+                sh '''
+                    # Kill any previous instance on port 5050
+                    pkill -f "python3.*app.py" || true
+                    sleep 1
+
+                    # Start the Flask app in background and save its PID
+                    nohup python3 ${DEPLOY_DIR}/app.py > ${APP_LOG} 2>&1 &
+                    echo $! > ${APP_PID}
+
+                    # Give Flask time to start (3 seconds)
+                    sleep 3
+
+                    # Confirm it started
+                    PID=$(cat ${APP_PID})
+                    echo "Flask started with PID: $PID"
+                    echo "Log output:"
+                    cat ${APP_LOG}
+                '''
+            }
+        }
+
+        // ── STAGE 5: Test Application ─────────────────────────────────────────
+        stage('Test Application') {
+            steps {
+                echo '========== STAGE 5: Test Application — Post-Deployment Verification =========='
+                sh '''
+                    echo "Sending HTTP GET to http://localhost:${APP_PORT}/ ..."
+                    RESPONSE=$(curl -s --max-time 5 http://localhost:${APP_PORT}/)
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:${APP_PORT}/)
+
+                    echo "HTTP Status Code : ${HTTP_CODE}"
+                    echo "Response Body    : ${RESPONSE}"
+
+                    # Assert Status Code is 200
+                    if [ "${HTTP_CODE}" != "200" ]; then
+                        echo "FAILED: Expected HTTP 200 but got ${HTTP_CODE}"
+                        exit 1
+                    fi
+
+                    # Assert Response Body is correct
+                    EXPECTED="Hello from Flask CI/CD Pipeline!"
+                    if [ "${RESPONSE}" != "${EXPECTED}" ]; then
+                        echo "FAILED: Expected body '${EXPECTED}' but got '${RESPONSE}'"
+                        exit 1
+                    fi
+
+                    echo "POST-DEPLOYMENT VERIFICATION PASSED!"
+
+                    # Stop the Flask app after verification
+                    PID=$(cat ${APP_PID})
+                    kill ${PID} 2>/dev/null || true
+                    echo "Flask server (PID: ${PID}) stopped after verification."
+                '''
+            }
+        }
+    }
+
+    // ── POST Actions ─────────────────────────────────────────────────────────
+    post {
+        success {
+            echo """
+            ============================================================
+             PIPELINE STATUS: SUCCESS
+             All 5 stages passed!
+             - Dependencies installed
+             - Unit tests passed (pytest)
+             - App deployed to ${DEPLOY_DIR}
+             - Flask server started
+             - Post-deployment HTTP verification passed
+            ============================================================
+            """
+        }
+        failure {
+            echo """
+            ============================================================
+             PIPELINE STATUS: FAILURE
+             One or more stages FAILED. Application was NOT deployed.
+             Check the console logs above for the failing stage.
+            ============================================================
+            """
+            sh '''
+                echo "--- Flask App Log (if available) ---"
+                cat ${WORKSPACE}/deployed-app/app.log 2>/dev/null || echo "(no log found)"
+            '''
+        }
+        always {
+            echo "Pipeline finished. Cleaning up background processes..."
+            sh 'pkill -f "python3.*app.py" 2>/dev/null || true'
+        }
+    }
+}

@@ -10,18 +10,14 @@ def client():
 
 
 def test_home_status_code(client):
-    """Test that the home route returns HTTP 200."""
+    """This test ALWAYS FAILS on purpose to demonstrate pipeline failure catching."""
     response = client.get("/")
-    assert response.status_code == 200
+    # DELIBERATELY WRONG: expecting 404 instead of 200
+    assert response.status_code == 404, "DELIBERATE FAILURE: This test is intentionally wrong!"
 
 
 def test_home_response_body(client):
-    """Test that the home route returns the correct response body."""
+    """This test also FAILS on purpose."""
     response = client.get("/")
-    assert response.data.decode("utf-8") == "Hello from Flask CI/CD Pipeline!"
-
-
-def test_health_route(client):
-    """Test that the health route returns UP status."""
-    response = client.get("/health")
-    assert response.status_code == 200
+    # DELIBERATELY WRONG expected string
+    assert response.data.decode("utf-8") == "WRONG EXPECTED RESPONSE — this will fail!"

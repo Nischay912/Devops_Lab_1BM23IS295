@@ -1,10 +1,3 @@
-# ❌ DELIBERATE FAILURE VERSION — test_app_fail.py
-# Use this file to demonstrate that Jenkins catches and reports test failures
-# Step 1: Rename test_app.py -> test_app_good.py
-# Step 2: Rename this file -> test_app.py
-# Step 3: Change Jenkinsfile Test stage to: pytest test_app.py -v
-# Step 4: Push and rerun pipeline — it will FAIL at Test stage and NOT deploy!
-
 import pytest
 from app import app
 

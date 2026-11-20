@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR    = "${WORKSPACE}/Question-9"
         DEPLOY_DIR = "${WORKSPACE}/Question-9/deployed-app"
         APP_PORT   = "5050"
         APP_PID    = "${WORKSPACE}/Question-9/deployed-app/app.pid"
@@ -15,14 +14,15 @@ pipeline {
         stage('Build') {
             steps {
                 echo '========== STAGE 1: Build — Installing Dependencies =========='
-                sh '''
-                    cd ${APP_DIR}
-                    python3 -m pip install --upgrade pip --quiet --break-system-packages
-                    pip3 install -r requirements.txt --quiet --break-system-packages
-                    echo "Dependencies installed successfully."
-                    pip3 show flask | grep Version
-                    pip3 show pytest | grep Version
-                '''
+                dir('Question-9') {
+                    sh '''
+                        python3 -m pip install --upgrade pip --quiet --break-system-packages
+                        pip3 install -r requirements.txt --quiet --break-system-packages
+                        echo "Dependencies installed successfully."
+                        pip3 show flask | grep Version
+                        pip3 show pytest | grep Version
+                    '''
+                }
             }
         }
 
@@ -30,10 +30,9 @@ pipeline {
         stage('Test') {
             steps {
                 echo '========== STAGE 2: Test — Running Unit Tests =========='
-                sh '''
-                    cd ${APP_DIR}
-                    python3 -m pytest test_app.py -v --tb=short
-                '''
+                dir('Question-9') {
+                    sh 'python3 -m pytest test_app.py -v --tb=short'
+                }
             }
         }
 
@@ -41,14 +40,16 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo '========== STAGE 3: Deploy — Copying App to Deployment Directory =========='
-                sh '''
-                    mkdir -p ${DEPLOY_DIR}
-                    cp ${APP_DIR}/app.py          ${DEPLOY_DIR}/
-                    cp ${APP_DIR}/requirements.txt ${DEPLOY_DIR}/
-                    echo "Deployment directory contents:"
-                    ls -la ${DEPLOY_DIR}/
-                    echo "Application deployed to ${DEPLOY_DIR}"
-                '''
+                dir('Question-9') {
+                    sh '''
+                        mkdir -p deployed-app
+                        cp app.py deployed-app/
+                        cp requirements.txt deployed-app/
+                        echo "Deployment directory contents:"
+                        ls -la deployed-app/
+                        echo "Application deployed successfully."
+                    '''
+                }
             }
         }
 
@@ -56,20 +57,22 @@ pipeline {
         stage('Run Application') {
             steps {
                 echo '========== STAGE 4: Run Application — Starting Flask Server =========='
-                sh '''
-                    pkill -f "python3.*app.py" || true
-                    sleep 1
+                dir('Question-9') {
+                    sh '''
+                        pkill -f "python3.*app.py" || true
+                        sleep 1
 
-                    nohup python3 ${DEPLOY_DIR}/app.py > ${APP_LOG} 2>&1 &
-                    echo $! > ${APP_PID}
+                        nohup python3 deployed-app/app.py > deployed-app/app.log 2>&1 &
+                        echo $! > deployed-app/app.pid
 
-                    sleep 3
+                        sleep 3
 
-                    PID=$(cat ${APP_PID})
-                    echo "Flask started with PID: $PID"
-                    echo "Log output:"
-                    cat ${APP_LOG}
-                '''
+                        PID=$(cat deployed-app/app.pid)
+                        echo "Flask started with PID: $PID"
+                        echo "Log output:"
+                        cat deployed-app/app.log
+                    '''
+                }
             }
         }
 
@@ -78,9 +81,9 @@ pipeline {
             steps {
                 echo '========== STAGE 5: Test Application — Post-Deployment Verification =========='
                 sh '''
-                    echo "Sending HTTP GET to http://localhost:${APP_PORT}/ ..."
-                    RESPONSE=$(curl -s --max-time 5 http://localhost:${APP_PORT}/)
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:${APP_PORT}/)
+                    echo "Sending HTTP GET to http://localhost:5050/ ..."
+                    RESPONSE=$(curl -s --max-time 5 http://localhost:5050/)
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:5050/)
 
                     echo "HTTP Status Code : ${HTTP_CODE}"
                     echo "Response Body    : ${RESPONSE}"
@@ -92,15 +95,15 @@ pipeline {
 
                     EXPECTED="Hello from Flask CI/CD Pipeline!"
                     if [ "${RESPONSE}" != "${EXPECTED}" ]; then
-                        echo "FAILED: Expected body '${EXPECTED}' but got '${RESPONSE}'"
+                        echo "FAILED: Expected body but got '${RESPONSE}'"
                         exit 1
                     fi
 
                     echo "POST-DEPLOYMENT VERIFICATION PASSED!"
 
-                    PID=$(cat ${APP_PID})
+                    PID=$(cat ${WORKSPACE}/Question-9/deployed-app/app.pid)
                     kill ${PID} 2>/dev/null || true
-                    echo "Flask server (PID: ${PID}) stopped after verification."
+                    echo "Flask server stopped after verification."
                 '''
             }
         }
@@ -129,10 +132,7 @@ pipeline {
              Check the console logs above for the failing stage.
             ============================================================
             """
-            sh '''
-                echo "--- Flask App Log (if available) ---"
-                cat ${APP_LOG} 2>/dev/null || echo "(no log found)"
-            '''
+            sh 'cat ${WORKSPACE}/Question-9/deployed-app/app.log 2>/dev/null || echo "(no log found)"'
         }
         always {
             echo "Pipeline finished. Cleaning up background processes..."

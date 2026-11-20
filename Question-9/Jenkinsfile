@@ -80,31 +80,33 @@ pipeline {
         stage('Test Application') {
             steps {
                 echo '========== STAGE 5: Test Application — Post-Deployment Verification =========='
-                sh '''
-                    echo "Sending HTTP GET to http://localhost:5050/ ..."
-                    RESPONSE=$(curl -s --max-time 5 http://localhost:5050/)
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:5050/)
+                dir('Question-9') {
+                    sh '''
+                        echo "Sending HTTP GET to http://localhost:5050/ ..."
+                        RESPONSE=$(curl -s --max-time 5 http://localhost:5050/)
+                        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:5050/)
 
-                    echo "HTTP Status Code : ${HTTP_CODE}"
-                    echo "Response Body    : ${RESPONSE}"
+                        echo "HTTP Status Code : ${HTTP_CODE}"
+                        echo "Response Body    : ${RESPONSE}"
 
-                    if [ "${HTTP_CODE}" != "200" ]; then
-                        echo "FAILED: Expected HTTP 200 but got ${HTTP_CODE}"
-                        exit 1
-                    fi
+                        if [ "${HTTP_CODE}" != "200" ]; then
+                            echo "FAILED: Expected HTTP 200 but got ${HTTP_CODE}"
+                            exit 1
+                        fi
 
-                    EXPECTED="Hello from Flask CI/CD Pipeline!"
-                    if [ "${RESPONSE}" != "${EXPECTED}" ]; then
-                        echo "FAILED: Expected body but got '${RESPONSE}'"
-                        exit 1
-                    fi
+                        EXPECTED="Hello from Flask CI/CD Pipeline!"
+                        if [ "${RESPONSE}" != "${EXPECTED}" ]; then
+                            echo "FAILED: Expected body but got '${RESPONSE}'"
+                            exit 1
+                        fi
 
-                    echo "POST-DEPLOYMENT VERIFICATION PASSED!"
+                        echo "POST-DEPLOYMENT VERIFICATION PASSED!"
 
-                    PID=$(cat ${WORKSPACE}/Question-9/deployed-app/app.pid)
-                    kill ${PID} 2>/dev/null || true
-                    echo "Flask server stopped after verification."
-                '''
+                        PID=$(cat deployed-app/app.pid)
+                        kill ${PID} 2>/dev/null || true
+                        echo "Flask server stopped after verification."
+                    '''
+                }
             }
         }
     }
@@ -132,7 +134,9 @@ pipeline {
              Check the console logs above for the failing stage.
             ============================================================
             """
-            sh 'cat ${WORKSPACE}/Question-9/deployed-app/app.log 2>/dev/null || echo "(no log found)"'
+            dir('Question-9') {
+                sh 'cat deployed-app/app.log 2>/dev/null || echo "(no log found)"'
+            }
         }
         always {
             echo "Pipeline finished. Cleaning up background processes..."

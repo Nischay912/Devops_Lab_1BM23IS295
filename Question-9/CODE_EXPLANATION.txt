@@ -1,0 +1,274 @@
+# CODE EXPLANATION FILE — Every line explained simply
+# Question 9: Declarative Pipeline with Application Verification
+# =================================================================
+# Use this to explain each file and each line of code to Ma'am.
+# =================================================================
+
+
+=================================================================
+FILE 1: app.py  (The Flask Web Application)
+=================================================================
+
+LINE 1:  from flask import Flask
+         → "We import the Flask class from the flask library.
+            Flask is a lightweight Python web framework."
+
+LINE 3:  app = Flask(__name__)
+         → "We create an instance of the Flask application.
+            __name__ tells Flask this is the main module."
+
+LINE 5:  @app.route("/")
+         → "This is a 'decorator'. It tells Flask:
+            When someone visits the URL '/', run the function below it."
+
+LINE 6:  def home():
+         → "We define a Python function called home()."
+
+LINE 7:  return "Hello from Flask CI/CD Pipeline!", 200
+         → "This function returns two things:
+            1. A text string: 'Hello from Flask CI/CD Pipeline!'
+            2. HTTP Status Code 200 (which means OK/Success)."
+
+LINE 9:  @app.route("/health")
+         → "A second URL route '/health' — used for health checking."
+
+LINE 10: def health():
+         → "Returns a JSON dictionary {status: UP} with HTTP 200."
+
+LINE 13: if __name__ == "__main__":
+         → "Only run the following code when this file is executed
+            directly (not when imported by a test)."
+
+LINE 14: app.run(host="0.0.0.0", port=5050, debug=False)
+         → "Start the Flask web server:
+            host='0.0.0.0' → Accept connections from any IP address
+            port=5050      → Listen on port 5050
+            debug=False    → Disable debug mode for production safety"
+
+WHAT THIS FILE DOES AS A WHOLE:
+  → Creates a small web application with 2 URLs:
+    - http://localhost:5050/        returns 'Hello from Flask CI/CD Pipeline!'
+    - http://localhost:5050/health  returns {'status': 'UP'}
+
+
+=================================================================
+FILE 2: requirements.txt  (Pinned Dependencies)
+=================================================================
+
+flask==2.1.2
+  → "Install Flask version 2.1.2 exactly.
+     The '==' means pin this exact version.
+     Pinning ensures every Jenkins build installs the SAME version
+     and not a newer broken version."
+
+Werkzeug==2.1.2
+  → "Werkzeug is Flask's internal toolkit for HTTP handling.
+     Must match Flask's version to prevent compatibility errors."
+
+pytest==7.4.0
+  → "pytest is the testing framework we use to run unit tests.
+     Pinned to 7.4.0 for stability."
+
+requests==2.31.0
+  → "requests is a Python HTTP library used to send GET/POST
+     requests from Python code (used in post-deployment tests)."
+
+WHAT THIS FILE DOES AS A WHOLE:
+  → Declares all Python libraries and their EXACT versions.
+     Jenkins runs: pip3 install -r requirements.txt
+     This guarantees identical environments every single build.
+
+
+=================================================================
+FILE 3: test_app.py  (Automated Unit Tests)
+=================================================================
+
+LINE 1:  import pytest
+         → "Import the pytest testing framework."
+
+LINE 2:  from app import app
+         → "Import our Flask app object from app.py so we can test it."
+
+LINE 5-7: @pytest.fixture / def client():
+         → "A fixture is a reusable test setup function.
+            It creates a test client — a fake browser that sends
+            HTTP requests to our Flask app without starting a real server."
+
+LINE 6:  app.config["TESTING"] = True
+         → "Tell Flask we are in testing mode — this enables
+            better error messages during tests."
+
+LINE 7:  with app.test_client() as client: yield client
+         → "Create the test client and pass it to each test function."
+
+LINE 11: def test_home_status_code(client):
+         → "Test function 1: Tests that visiting '/' returns HTTP 200."
+
+LINE 13: response = client.get("/")
+         → "Use the test client to send a GET request to the '/' route."
+
+LINE 14: assert response.status_code == 200
+         → "ASSERT: The HTTP status code MUST equal 200.
+            If it is anything else (like 404), the test FAILS."
+
+LINE 18: def test_home_response_body(client):
+         → "Test function 2: Tests that the response text is correct."
+
+LINE 20: assert response.data.decode("utf-8") == "Hello from Flask CI/CD Pipeline!"
+         → "ASSERT: The response body text MUST match exactly.
+            Even one extra space will cause the test to FAIL."
+
+LINE 23: def test_health_route(client):
+         → "Test function 3: Tests that the /health route returns HTTP 200."
+
+WHAT THIS FILE DOES AS A WHOLE:
+  → Runs 3 automated checks every time the pipeline runs:
+    Test 1: Home route → HTTP 200?       ✅ or ❌
+    Test 2: Home route → Correct text?   ✅ or ❌
+    Test 3: Health route → HTTP 200?     ✅ or ❌
+  → If ANY test fails, Jenkins STOPS and does NOT deploy.
+
+
+=================================================================
+FILE 4: test_app_fail.py  (Deliberate Failure Demo File)
+=================================================================
+
+LINE 10: def test_home_status_code(client):
+LINE 13: assert response.status_code == 404
+         → "DELIBERATELY WRONG: We expect 404 (Not Found) but app returns 200.
+            This assertion will always FAIL."
+
+LINE 17: assert response.data.decode("utf-8") == "WRONG EXPECTED RESPONSE"
+         → "DELIBERATELY WRONG: This string never matches the app output.
+            This assertion will always FAIL."
+
+WHAT THIS FILE DOES AS A WHOLE:
+  → Used ONLY for the demo where we intentionally break the pipeline
+    to show Ma'am that Jenkins catches failures and stops deployment.
+  → Swap test_app.py with this file → push → Jenkins Stage 2 FAILS.
+  → Application is NEVER deployed when tests fail.
+
+
+=================================================================
+FILE 5: Jenkinsfile  (The Complete CI/CD Pipeline Definition)
+=================================================================
+
+LINE 1:  pipeline {
+         → "Start of the Declarative Pipeline block.
+            Everything inside here defines the CI/CD workflow."
+
+LINE 2:  agent any
+         → "Run this pipeline on ANY available Jenkins agent/executor.
+            In our case, it runs on the Jenkins container itself."
+
+LINE 4-10: environment { ... }
+         → "Define pipeline-level environment variables (like constants):
+            DEPLOY_DIR → Path where app will be deployed
+            APP_PORT   → Port 5050 that Flask runs on
+            APP_PID    → File that stores the Flask process ID
+            APP_LOG    → File that stores the Flask server log"
+
+--- STAGE 1: Build ---
+LINE 14: stage('Build') {
+         → "First stage: Install all dependencies."
+
+LINE 17: sh 'python3 -m pip install --upgrade pip --quiet'
+         → "Upgrade pip to the latest version silently."
+
+LINE 18: sh 'pip3 install -r requirements.txt --quiet'
+         → "Install all pinned libraries from requirements.txt."
+
+LINE 19: sh 'pip3 show flask | grep Version'
+         → "Print the installed Flask version — proves it was installed."
+
+--- STAGE 2: Test ---
+LINE 28: stage('Test') {
+         → "Second stage: Run automated unit tests."
+
+LINE 31: sh 'python3 -m pytest test_app.py -v --tb=short'
+         → "Run pytest on test_app.py:
+            -v       → verbose output (shows each test name)
+            --tb=short → show short error trace if a test fails
+            If ANY test fails, pytest exits with code 1,
+            Jenkins detects this and marks stage as FAILED."
+
+--- STAGE 3: Deploy ---
+LINE 38: stage('Deploy') {
+         → "Third stage: Copy app files to deployment directory."
+
+LINE 41: sh 'mkdir -p ${DEPLOY_DIR}'
+         → "Create the deployed-app folder if it doesn't exist."
+
+LINE 42: sh 'cp ${WORKSPACE}/app.py ${DEPLOY_DIR}/'
+         → "Copy the Flask app file to the deployment directory."
+
+LINE 44: sh 'ls -la ${DEPLOY_DIR}/'
+         → "List the deployment directory to confirm files are there."
+
+--- STAGE 4: Run Application ---
+LINE 51: stage('Run Application') {
+         → "Fourth stage: Start the Flask server in background."
+
+LINE 54: sh 'pkill -f "python3.*app.py" || true'
+         → "Kill any old Flask process from a previous build.
+            '|| true' means: if no process found, don't error out."
+
+LINE 57: sh 'nohup python3 ${DEPLOY_DIR}/app.py > ${APP_LOG} 2>&1 &'
+         → "Start Flask server:
+            nohup     → Don't stop it when this shell session ends
+            &         → Run in background (non-blocking)
+            > app.log → Write output to log file
+            2>&1      → Also write errors to the same log"
+
+LINE 58: sh 'echo $! > ${APP_PID}'
+         → "$! is the PID (Process ID) of the last background command.
+            Save it to a file so we can stop it later."
+
+LINE 60: sh 'sleep 3'
+         → "Wait 3 seconds to give Flask time to fully start up."
+
+--- STAGE 5: Test Application ---
+LINE 69: stage('Test Application') {
+         → "Fifth stage: Verify the deployed app is running correctly."
+
+LINE 72: sh 'RESPONSE=$(curl -s --max-time 5 http://localhost:${APP_PORT}/)'
+         → "Send a live HTTP GET request to the deployed Flask app
+            and store the response text in RESPONSE variable."
+
+LINE 73: sh 'HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" ...)'
+         → "Get only the HTTP status code (200, 404, 500, etc.)
+            -o /dev/null → Discard the body
+            -w %{http_code} → Print only the status code"
+
+LINE 77: if [ "${HTTP_CODE}" != "200" ]; then exit 1; fi
+         → "If status code is not 200, fail the pipeline.
+            exit 1 tells Jenkins: this step FAILED."
+
+LINE 83: if [ "${RESPONSE}" != "${EXPECTED}" ]; then exit 1; fi
+         → "If the response body doesn't match exactly, fail the pipeline."
+
+LINE 87: sh 'kill ${PID}'
+         → "Stop the Flask server process after verification is done."
+
+--- POST ACTIONS ---
+LINE 94: post {
+         → "Actions to run AFTER all stages complete."
+
+LINE 95: success { echo "PIPELINE STATUS: SUCCESS" }
+         → "If ALL stages passed, print success message."
+
+LINE 103: failure { echo "PIPELINE STATUS: FAILURE" }
+         → "If ANY stage failed, print failure message and show the app log."
+
+LINE 112: always { sh 'pkill -f "python3.*app.py" || true' }
+         → "ALWAYS runs (success or failure): Kill any remaining Flask process
+            to clean up the Jenkins agent. No zombie processes left behind."
+
+WHAT THE Jenkinsfile DOES AS A WHOLE:
+  → Defines a 5-stage automated CI/CD workflow:
+    Stage 1 (Build)   → Install dependencies
+    Stage 2 (Test)    → Run pytest unit tests (GATE: fail here = no deploy)
+    Stage 3 (Deploy)  → Copy app to deployment folder
+    Stage 4 (Run)     → Start Flask server on port 5050
+    Stage 5 (Verify)  → HTTP curl test proves the deployment works
+    Post (always)     → Clean up background processes

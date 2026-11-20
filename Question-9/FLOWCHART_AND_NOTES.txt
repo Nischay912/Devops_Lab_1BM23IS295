@@ -1,0 +1,204 @@
+====================================================================
+FLOWCHART & NOTES — Copy these into your notebook
+Question 9: Declarative Pipeline with Application Verification
+====================================================================
+Draw these 5 diagrams in your copy with pencil first, then pen.
+====================================================================
+
+
+====================================================================
+DIAGRAM 1: OVERALL SYSTEM (draw left to right with arrows)
+====================================================================
+
+[You / Developer]
+       |
+       |  git push (PowerShell on Windows)
+       v
+[GitHub Repository]  ----->  [Jenkins reads Jenkinsfile]
+(Nischay912/...)                        |
+                                        v
+                             [5-Stage Pipeline runs]
+                             (automatically, inside Jenkins container)
+
+
+====================================================================
+DIAGRAM 2: THE 5-STAGE PIPELINE FLOWCHART
+(Most important - draw top to bottom with boxes and arrows)
+====================================================================
+
+              +-------------------------------+
+              |  Jenkins: Build Now clicked   |
+              +---------------+---------------+
+                              |
+                              v
+              +-------------------------------+
+              |  STAGE 1: BUILD               |
+              |  pip3 install -r              |
+              |  requirements.txt             |
+              |  Installs Flask + pytest      |
+              +---------------+---------------+
+                              |
+                              v
+              +-------------------------------+
+              |  STAGE 2: TEST                |
+              |  pytest test_app.py -v        |
+              |  3 tests run automatically    |
+              +---------------+---------------+
+                              |
+                 +------------+------------+
+                 |                         |
+              PASS                       FAIL
+                 |                         |
+                 v                         v
+     +-------------------+   +------------------------+
+     | Go to next stage  |   | PIPELINE STOPS HERE    |
+     +-------------------+   | App NOT deployed       |
+                 |           | POST: FAILURE message  |
+                 v           +------------------------+
+              +-------------------------------+
+              |  STAGE 3: DEPLOY              |
+              |  mkdir deployed-app/          |
+              |  cp app.py deployed-app/      |
+              +---------------+---------------+
+                              |
+                              v
+              +-------------------------------+
+              |  STAGE 4: RUN APPLICATION     |
+              |  nohup python3 app.py &       |
+              |  Flask starts on port 5050    |
+              |  PID saved to app.pid         |
+              +---------------+---------------+
+                              |
+                              v
+              +-------------------------------+
+              |  STAGE 5: TEST APPLICATION    |
+              |  curl http://localhost:5050/  |
+              |  Check: HTTP 200?             |
+              |  Check: Body text correct?    |
+              +---------------+---------------+
+                              |
+                 +------------+------------+
+                 |                         |
+              PASS                       FAIL
+                 |                         |
+                 v                         v
+     +-------------------+   +------------------------+
+     | POST: SUCCESS     |   | POST: FAILURE          |
+     | All 5 stages done |   | Show logs, stop        |
+     +-------------------+   +------------------------+
+                 |
+                 v
+     POST ALWAYS: Kill Flask process (cleanup)
+
+
+====================================================================
+DIAGRAM 3: FOLDER STRUCTURE (draw as tree in copy)
+====================================================================
+
+Devops_Lab_1BM23IS295/           <- GitHub Repo
+|
++-- Question-9/                  <- Our Project
+    |
+    +-- app.py                   <- Flask app (routes / and /health)
+    |
+    +-- requirements.txt         <- Flask==2.1.2, pytest==7.4.0
+    |
+    +-- test_app.py              <- 3 unit tests (good version)
+    |
+    +-- test_app_fail.py         <- Broken tests for demo only
+    |
+    +-- Jenkinsfile              <- 5-stage pipeline definition
+
+
+====================================================================
+DIAGRAM 4: NORMAL vs FAILURE RUN (draw 2 columns)
+====================================================================
+
+NORMAL (Good tests):       |   FAILURE DEMO (Bad tests):
+---------------------------|---------------------------
+Stage 1 Build   : PASS     |   Stage 1 Build   : PASS
+Stage 2 Test    : PASS     |   Stage 2 Test    : FAIL
+  3 tests pass             |     assert 200==404 ERROR
+Stage 3 Deploy  : PASS     |   Stage 3 Deploy  : SKIPPED
+Stage 4 Run     : PASS     |   Stage 4 Run     : SKIPPED
+Stage 5 Verify  : PASS     |   Stage 5 Verify  : SKIPPED
+POST: SUCCESS              |   POST: FAILURE
+                           |   "App NOT deployed"
+
+KEY POINT (write this below):
+  The Test stage is the SAFETY GATE.
+  Broken code is NEVER deployed if tests fail.
+
+
+====================================================================
+DIAGRAM 5: DOCKER + JENKINS (draw as nested boxes)
+====================================================================
+
++------------------------------------------+
+|  Windows Laptop (Docker Desktop running) |
+|                                          |
+|  +------------------------------------+  |
+|  |  Jenkins Container (Linux inside) |  |
+|  |  Port 8080 mapped to 8081         |  |
+|  |                                   |  |
+|  |  Python 3 installed inside        |  |
+|  |  pip3 installed inside            |  |
+|  |  curl installed inside            |  |
+|  |                                   |  |
+|  |  Clones GitHub repo               |  |
+|  |  Runs all 5 pipeline stages       |  |
+|  |  Starts Flask on port 5050        |  |
+|  +------------------------------------+  |
+|                                          |
+|  You access via Chrome: localhost:8081   |
++------------------------------------------+
+
+
+====================================================================
+VIVA QUESTIONS AND ANSWERS — Write these in copy
+====================================================================
+
+Q1: What is a Declarative Pipeline?
+A: A Jenkins pipeline defined in a Jenkinsfile stored in the Git
+   repository alongside code. It has a fixed structure with blocks:
+   pipeline, agent, stages, steps, and post.
+   This is called "Pipeline as Code."
+
+Q2: What is the purpose of the Test stage?
+A: It acts as a safety gate. pytest runs all unit tests automatically.
+   If any test fails, Jenkins stops the pipeline immediately and the
+   application is NEVER deployed. This prevents broken code from
+   reaching production.
+
+Q3: What is post-deployment verification (Stage 5)?
+A: After starting the Flask server, we send a live HTTP GET request
+   using curl to http://localhost:5050/ and assert:
+   1. The HTTP status code equals 200
+   2. The response body matches the expected text exactly
+   This proves the deployed application is live and working correctly.
+
+Q4: What does nohup do in Stage 4?
+A: nohup (no hang-up) starts Flask as a background process that keeps
+   running even after the shell that launched it closes.
+   The & symbol runs it in the background so the pipeline can continue.
+
+Q5: What is Pipeline as Code?
+A: Storing the Jenkins pipeline definition in a Jenkinsfile in Git
+   so the CI/CD process is version-controlled, reviewable, and
+   reproducible across any machine.
+
+Q6: What is the difference between Stage 2 Test and Stage 5 Test?
+A: Stage 2 (Test): Tests the source code using unit tests with
+   a fake test client. No real server is running.
+   Stage 5 (Test Application): Tests the RUNNING deployed app by
+   sending real HTTP requests using curl. Proves live deployment works.
+
+Q7: Why pin versions in requirements.txt?
+A: To ensure every build installs the exact same library versions.
+   Without pinning, a newer version might introduce breaking changes
+   and cause random failures in future builds.
+
+Q8: What happens in the post always block?
+A: It runs regardless of success or failure and kills any background
+   Flask process using pkill. This prevents zombie processes from
+   accumulating on the Jenkins agent between builds.

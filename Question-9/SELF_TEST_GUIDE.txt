@@ -1,0 +1,253 @@
+====================================================================
+SELF-TEST GUIDE — Windows with Docker Desktop
+Question 9: Declarative Pipeline with Application Verification
+====================================================================
+Everything here uses Windows PowerShell.
+Jenkins runs INSIDE a Docker container (which is Linux internally),
+so the Jenkinsfile shell commands work fine as-is.
+====================================================================
+
+
+====================================================================
+PHASE 1: PUSH YOUR CODE TO GITHUB
+(Do this first on your friend's Windows laptop)
+====================================================================
+
+--- Open PowerShell ---
+
+--- Go to the repo folder ---
+cd C:\Users\shikh\OneDrive\Desktop\Devops_Lab_1BM23IS295
+
+--- Pull latest files from GitHub ---
+git pull
+
+--- Check the Question-9 folder exists ---
+ls Question-9\
+# Should show: app.py  requirements.txt  test_app.py
+#              test_app_fail.py  Jenkinsfile  README.md
+
+--- Push Question-9 to GitHub ---
+git add Question-9\
+git commit -m "Add Question-9: Declarative Pipeline"
+git push origin master
+
+
+====================================================================
+PHASE 2: TEST THE APP LOCALLY ON WINDOWS FIRST
+(Before Jenkins — confirm it works manually)
+====================================================================
+
+--- Step 1: Go to Question-9 folder ---
+cd C:\Users\shikh\OneDrive\Desktop\Devops_Lab_1BM23IS295\Question-9
+
+--- Step 2: Install Python dependencies ---
+pip install -r requirements.txt
+
+--- Step 3: Run pytest unit tests ---
+python -m pytest test_app.py -v
+
+# EXPECTED OUTPUT you should see:
+# test_app.py::test_home_status_code    PASSED
+# test_app.py::test_home_response_body  PASSED
+# test_app.py::test_health_route        PASSED
+# 3 passed in 0.XX seconds
+
+--- Step 4: Start the Flask app locally ---
+# Run this in PowerShell (it will keep running, that is fine):
+python app.py
+
+# In a NEW second PowerShell window, test it:
+curl http://localhost:5050/
+
+# EXPECTED:
+# Hello from Flask CI/CD Pipeline!
+
+# Stop Flask after testing:
+# Press Ctrl+C in the first PowerShell window
+
+
+====================================================================
+PHASE 3: START JENKINS USING DOCKER DESKTOP
+====================================================================
+
+--- Make sure Docker Desktop is running ---
+# Check the whale icon in taskbar is solid (not spinning)
+
+--- Step 1: Open PowerShell and start Jenkins container ---
+docker run -d --name jenkins `
+  -p 8081:8080 `
+  -v jenkins_home:/var/jenkins_home `
+  jenkins/jenkins:lts
+
+NOTE: In PowerShell, use backtick ` for line continuation (not \)
+OR just paste as one line:
+docker run -d --name jenkins -p 8081:8080 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts
+
+--- Step 2: Wait 30 seconds for Jenkins to start ---
+Start-Sleep -Seconds 30
+
+--- Step 3: Get admin password ---
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+# Copy the long password shown (like: 53c92dc0dfd24bd09bf0c495857ecebd)
+
+--- Step 4: Open Chrome → http://localhost:8081 ---
+# Paste the password → Click Continue
+# Click "Install suggested plugins" → Wait for it to finish
+# Create admin user → Click "Start using Jenkins"
+
+--- Step 5: Install Python inside Jenkins container ---
+# Run this command in PowerShell:
+docker exec -u root -it jenkins bash
+
+# You are now INSIDE the Jenkins container (Linux terminal appears)
+# Run these one by one:
+apt-get update -qq
+apt-get install -y python3 python3-pip curl
+exit
+
+# You are back in Windows PowerShell now
+
+--- Step 6: Verify Python is inside Jenkins ---
+docker exec jenkins python3 --version
+docker exec jenkins pip3 --version
+docker exec jenkins curl --version
+# All 3 must show version numbers!
+
+
+====================================================================
+PHASE 4: CREATE THE JENKINS PIPELINE JOB
+====================================================================
+
+1. Open Chrome → http://localhost:8081
+2. Click "New Item" on the left sidebar
+3. In the Name box type: flask-cicd-pipeline
+4. Click "Pipeline" (the last option in the list)
+5. Click OK
+
+6. Scroll down to the PIPELINE section at the bottom of the page
+7. Change Definition from "Pipeline script" to:
+   "Pipeline script from SCM"
+
+8. Under SCM, select: Git
+
+9. In Repository URL box type:
+   https://github.com/Nischay912/Devops_Lab_1BM23IS295.git
+
+10. In Branch Specifier box, change to:
+    */master
+
+11. In Script Path box type:
+    Question-9/Jenkinsfile
+
+12. Click SAVE button
+
+
+====================================================================
+PHASE 5: RUN THE PIPELINE AND VERIFY (SUCCESS CASE)
+====================================================================
+
+--- Click "Build Now" on the left sidebar ---
+
+--- Watch the Stage View appear (5 boxes should turn green) ---
+Build ✅ → Test ✅ → Deploy ✅ → Run Application ✅ → Test Application ✅
+
+--- Click on the build number (#1) on the left ---
+--- Click "Console Output" ---
+
+Scroll through and confirm you see these lines:
+  "Dependencies installed successfully."
+  "3 passed"
+  "Application deployed to..."
+  "Flask started with PID:"
+  "HTTP Status Code : 200"
+  "POST-DEPLOYMENT VERIFICATION PASSED!"
+  "PIPELINE STATUS: SUCCESS"
+
+
+====================================================================
+PHASE 6: DEMONSTRATE DELIBERATE FAILURE
+====================================================================
+
+--- Step 1: Open PowerShell, go to Question-9 folder ---
+cd C:\Users\shikh\OneDrive\Desktop\Devops_Lab_1BM23IS295\Question-9
+
+--- Step 2: Swap in the failing test file ---
+Rename-Item -Path "test_app.py" -NewName "test_app_good.py"
+Rename-Item -Path "test_app_fail.py" -NewName "test_app.py"
+
+--- Step 3: Push to GitHub ---
+git add .
+git commit -m "Demo: Introduce deliberate test failure"
+git push origin master
+
+--- Step 4: Go to Jenkins → Click Build Now again ---
+# Stage View will show:
+  Build ✅ → Test ❌ FAILED → Deploy ⬜ SKIPPED → Run App ⬜ → Test App ⬜
+
+# Console Output will show:
+  "AssertionError: assert 200 == 404"
+  "PIPELINE STATUS: FAILURE"
+  "One or more stages FAILED. Application was NOT deployed."
+
+--- Step 5: Take a screenshot of the failure screen ---
+
+--- Step 6: Restore the good tests ---
+Rename-Item -Path "test_app.py" -NewName "test_app_fail.py"
+Rename-Item -Path "test_app_good.py" -NewName "test_app.py"
+git add .
+git commit -m "Restore: Good tests back after failure demo"
+git push origin master
+
+--- Step 7: Run pipeline again → Confirm all 5 stages GREEN ---
+
+
+====================================================================
+PHASE 7: RESET BEFORE CALLING MA'AM
+====================================================================
+
+--- Make sure good tests are active ---
+ls Question-9\
+# test_app.py should be the GOOD version (not test_app_fail.py)
+
+--- Delete old Jenkins job and recreate fresh (optional) ---
+# Jenkins Dashboard → flask-cicd-pipeline → Delete Pipeline
+# Then redo Phase 4 steps to create a fresh job
+
+--- OR: Just click Build Now for a fresh clean run ---
+
+--- Keep these tabs open in Chrome for Ma'am ---
+Tab 1: http://localhost:8081 → Jenkins Dashboard
+Tab 2: Stage View showing 5 green stages
+Tab 3: Console Output showing SUCCESS logs
+
+--- Keep PowerShell open with this ready to run when she asks ---
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+====================================================================
+YOU ARE READY. CALL MA'AM!
+====================================================================
+
+
+====================================================================
+QUICK REFERENCE: Useful PowerShell Commands
+====================================================================
+
+Check Jenkins container is running:
+  docker ps --filter name=jenkins
+
+See Jenkins logs:
+  docker logs jenkins
+
+Stop Jenkins:
+  docker stop jenkins
+
+Start Jenkins again:
+  docker start jenkins
+
+Remove Jenkins container completely (fresh start):
+  docker rm -f jenkins
+  docker run -d --name jenkins -p 8081:8080 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts
+
+Check if port 5050 is in use:
+  netstat -ano | findstr :5050
